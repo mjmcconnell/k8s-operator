@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	testv1alpha1 "github.com/mjmcconnell/k8s-operator/api/v1alpha1"
+	testv1alpha1 "github.com/mjmcconnell/k8s-operator/pkg/api/v1alpha1"
 )
 
 // FooReconciler reconciles a Foo object

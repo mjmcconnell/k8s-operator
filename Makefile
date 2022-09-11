@@ -63,6 +63,9 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Namespace to install the operator into
+NAMESPACE=mjm
+
 .PHONY: all
 all: build
 
@@ -109,11 +112,12 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager ./cmd/manager/main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+run: manifests generate fmt vet install ## Run a controller from your host.
+	WATCH_NAMESPACE=$(NAMESPACE) \
+	go run ./cmd/manager/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
@@ -180,7 +184,7 @@ $(ENVTEST): $(LOCALBIN)
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+	operator-sdk generate kustomize manifests -q --apis-dir pkg/api
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle $(BUNDLE_GEN_FLAGS)
 	operator-sdk bundle validate ./bundle

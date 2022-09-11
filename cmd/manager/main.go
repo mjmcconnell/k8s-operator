@@ -17,13 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -31,9 +34,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	testv1alpha1 "github.com/mjmcconnell/k8s-operator/api/v1alpha1"
-	"github.com/mjmcconnell/k8s-operator/controllers"
+	testv1alpha1 "github.com/mjmcconnell/k8s-operator/pkg/api/v1alpha1"
+	"github.com/mjmcconnell/k8s-operator/pkg/controllers"
 	//+kubebuilder:scaffold:imports
+)
+
+const (
+	// WatchNamespaceEnvKey defines the environment variable to query, when determining the namespace which the operator should monitor
+	WatchNamespaceEnvKey string = "WATCH_NAMESPACE"
 )
 
 var (
@@ -65,8 +73,15 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	namespace, err := getNamespace()
+	if err != nil {
+		setupLog.Error(err, "failed setting namespace")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
+		Namespace:              namespace,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
@@ -112,4 +127,18 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// getNamespace grabs the namespace based on the WatchNamespaceEnvKey env var
+// only supports single namespaces, so will return an error if a single ns is not defined
+func getNamespace() (string, error) {
+	namespace, found := os.LookupEnv(WatchNamespaceEnvKey)
+	if !found {
+		return "", errors.New("please specify a namespace for the operator")
+	} else if namespace == metav1.NamespaceAll {
+		return "", errors.New("operator only supports watching on a single namespace")
+	} else if strings.Contains(namespace, ",") {
+		return "", errors.New("operator only supports watching on a single namespace")
+	}
+	return namespace, nil
 }
