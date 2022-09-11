@@ -40,7 +40,16 @@ type FooReconciler struct {
 func (r *FooReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	//
+	// GetOrSet related resources into the state manager
+	// If parent resource (CRD), is not in a ready state, loop through all related
+	// resources to check their state.
+
+	// If a child resource is not in a ready state, check its readiness state, and report on its status.
+	// Ensure resource matches expected state, and if not update resource.
+	// If child status is not ready, re-trigger reconcile loop with a backoff.
+
+	// If parent resource is in a ready state, query all child resources, to ensure their state matches expected.
+	// If child is found drifted, then set both child and parent state to not ready, and trigger a new reconcile.
 
 	return ctrl.Result{}, nil
 }
